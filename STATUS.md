@@ -5,6 +5,15 @@ Repo: https://github.com/Lyons800/forge (private)
 **Phase 1 (Substrate) + Phase 2 (Engine codebase) both COMPLETE and merged to `main`. 87 tests green, CI green.**
 The Engine code exists but is NOT activated (it's default-OFF and unscheduled). Activation needs the hard gates below.
 
+## PRODUCTION IS LIVE (2026-06-08)
+- Neon project **forge** created (Free, AWS US East 1, project `crimson-tooth-24733307`, db `neondb`, pooled connection).
+- Migrations applied to prod DB (all tables: changelog_entries, auth tables, board_submissions, engine_reports).
+- Vercel production env set (encrypted): `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `BREAK_GLASS_TOKEN`. Redeployed.
+- Verified live: /engine shows real dashboard (ENGINE DISABLED + cap), DB-backed pages work, auth ready.
+- ⚠️ `BREAK_GLASS_TOKEN` + `BETTER_AUTH_SECRET` exist ONLY in Vercel (encrypted). To save the break-glass token to a password manager: `vercel env pull .env.prod.local` then copy it, then delete that file.
+- NOT yet set (optional, env-gated): `NEXT_PUBLIC_POSTHOG_KEY`(+host), `SENTRY_DSN`. App works without them.
+- Vercel git auto-deploy is connected → pushes to `main` deploy automatically.
+
 ## ⛔ Hard gates before the Engine can run autonomously
 1. **Control-plane enforcement** — make repo PUBLIC (free, on-brand) or GitHub Pro, then turn on branch protection requiring `gate` + `migrations` + `control-plane-guard`. Until then the "AI can't edit its own guardrails" guarantee is advisory only (the guard runs in CI but nothing forces it without protection).
 2. **Production credentials + go live** — Neon (PITR on) `DATABASE_URL`; `BETTER_AUTH_SECRET`, `BREAK_GLASS_TOKEN`, `SENTRY_DSN`, `NEXT_PUBLIC_POSTHOG_KEY`(+host) in Vercel. Confirm sign-up/tool/board/build-log work in prod.
