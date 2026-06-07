@@ -34,7 +34,7 @@ must be rejected immediately and the run aborted.
 | `.github/` | GitHub Actions workflows, CODEOWNERS, and CI configuration |
 | `tests/` | Unit and E2E test suite (control-plane integrity + regression guards) |
 | `src/lib/auth.ts` | App-plane re-export of the control-plane auth config — control-critical despite living in src/; tampering here can fake sessions |
-| Auth tables in `drizzle/schema.ts` | The `user`, `session`, `account`, and `verification` tables are Control-plane schema — never drop, rename, or alter their primary-key/FK structure |
+| `drizzle/schema.ts` | Contains the control-plane auth tables (`user`, `session`, `account`, `verification`). The entire file is blocked by the guard (v1 tradeoff: agents may not add app-plane tables directly here — propose schema changes for human review instead). |
 
 ### APP plane — Engine may modify freely
 
@@ -70,9 +70,11 @@ app-plane tables. It may never remove or rename columns or tables (see §5 below
    each run to recover state. `STATUS.md` is bounded: maximum 200 lines. If
    `STATUS.md` grows beyond this, summarise and truncate.
 
-5. **Weekly ship cap = 3 features** (default, tunable in Phase 2 via
-   `control/limits.json` when introduced). If the cap for the current ISO week
-   is reached, the Engine must not open further PRs until the next week begins.
+5. **Rolling 7-day ship cap = 3 features** (default, tunable in Phase 2 via
+   `control/limits.json` when introduced). The cap is a rolling 7-day window
+   (matching `countShipsLast7Days`), not an ISO-week boundary. If 3 ships have
+   occurred in the past 7 days, the Engine must not open further PRs until the
+   oldest of those ships falls outside the rolling window.
 
 6. **One bounded scheduled run per day.** The Engine may be triggered
    on-demand any number of times, but scheduled (cron) runs are limited to one

@@ -43,3 +43,16 @@ export async function listPublicSubmissions(db: AnyDb) {
     .orderBy(desc(boardSubmissions.createdAt));
   return rows as (typeof boardSubmissions.$inferSelect)[];
 }
+
+/**
+ * Engine fuel: returns ONLY approved submissions, newest-first.
+ * NEVER returns pending or needs_review rows — security-critical filter.
+ */
+export async function listApprovedSubmissions(db: AnyDb) {
+  const rows = await db
+    .select()
+    .from(boardSubmissions)
+    .where(inArray(boardSubmissions.status, ["approved"]))
+    .orderBy(desc(boardSubmissions.createdAt));
+  return rows as (typeof boardSubmissions.$inferSelect)[];
+}

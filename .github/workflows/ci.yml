@@ -31,6 +31,18 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm exec playwright test
 
+  control-plane-guard:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'claude/')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Block agent edits to control-plane paths
+        run: |
+          chmod +x scripts/check-control-plane.sh
+          git diff --name-only origin/${{ github.base_ref }}...HEAD | bash scripts/check-control-plane.sh --stdin
+
   migrations:
     runs-on: ubuntu-latest
     steps:
@@ -45,6 +57,8 @@ jobs:
             # Pull request: only check migrations added in this PR vs base branch
             bash scripts/check-migrations.sh --git-base "${{ github.base_ref }}"
           else
-            # Direct push to branch: check the single most-recent migration file
-            bash scripts/check-migrations.sh --latest 1
+            # Direct push to branch: scan all migrations added since main (default mode —
+            # no unsupported flags; the script's no-arg path handles git-log diff or falls
+            # back to scanning all migration files when no base is determinable)
+            bash scripts/check-migrations.sh
           fi
