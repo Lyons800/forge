@@ -57,6 +57,8 @@ jobs:
             # Pull request: only check migrations added in this PR vs base branch
             bash scripts/check-migrations.sh --git-base "${{ github.base_ref }}"
           else
-            # Direct push to branch: check the single most-recent migration file
-            bash scripts/check-migrations.sh --latest 1
+            # Direct push to branch: scan all migrations added since main (default mode —
+            # no unsupported flags; the script's no-arg path handles git-log diff or falls
+            # back to scanning all migration files when no base is determinable)
+            bash scripts/check-migrations.sh
           fi

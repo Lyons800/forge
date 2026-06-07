@@ -35,6 +35,11 @@ CONTROL_PLANE_PATTERNS=(
   '^\.github/'
   '^tests/'
   '^src/lib/auth\.ts$'
+  # drizzle/schema.ts contains the control-plane auth tables (user, session, account,
+  # verification). Blocking all edits to this file ensures no agent can alter auth
+  # table structure. Tradeoff (v1): agents may not add app-plane tables directly to
+  # schema.ts; instead propose schema changes for human review.
+  '^drizzle/schema\.ts$'
 )
 
 MODE=""
@@ -69,10 +74,20 @@ declare -a FILES=()
 
 if [[ "$MODE" == "files" ]]; then
   while IFS= read -r line; do
+    # Trim surrounding whitespace
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    # Strip a leading "./" prefix so "./CONSTITUTION.md" matches "CONSTITUTION.md"
+    line="${line#./}"
     [[ -n "$line" ]] && FILES+=("$line")
   done <<< "$FILES_INPUT"
 elif [[ "$MODE" == "stdin" ]]; then
   while IFS= read -r line; do
+    # Trim surrounding whitespace
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    # Strip a leading "./" prefix so "./CONSTITUTION.md" matches "CONSTITUTION.md"
+    line="${line#./}"
     [[ -n "$line" ]] && FILES+=("$line")
   done
 fi
