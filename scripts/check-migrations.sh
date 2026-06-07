@@ -9,6 +9,13 @@
 #   DROP TABLE, DROP COLUMN, DROP SCHEMA
 #   ALTER TABLE ... RENAME COLUMN, ALTER TABLE ... RENAME TO
 #
+# AUTH TABLE PROTECTION:
+#   The auth tables (user, session, account, verification) are core control-plane
+#   tables managed by Better Auth (control/auth/auth.config.ts). Destructive
+#   operations against these tables are ALWAYS blocked by the patterns above.
+#   These tables must NEVER be added to any allowlist — they are forever protected.
+#   No autonomous agent may DROP or RENAME them.
+#
 # Usage:
 #   ./scripts/check-migrations.sh [--git-base <branch>] [--latest <n>] <migrations-dir>
 #
