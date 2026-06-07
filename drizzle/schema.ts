@@ -16,6 +16,14 @@ export const changelogEntries = pgTable("changelog_entries", {
   shippedAt: timestamp("shipped_at").defaultNow().notNull(),
 });
 
+export const boardSubmissions = pgTable("board_submissions", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  status: text("status").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // ─── CONTROL-PLANE AUTH TABLES ───────────────────────────────────────────────
 // These tables are managed by Better Auth (control/auth/auth.config.ts).
 // NEVER DROP or RENAME these tables — the destructive-migration guard enforces this.
