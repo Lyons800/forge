@@ -24,6 +24,14 @@ export const boardSubmissions = pgTable("board_submissions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// APP-plane engine reports table — written by the daily engine Routine
+export const engineReports = pgTable("engine_reports", {
+  id: serial("id").primaryKey(),
+  runDate: timestamp("run_date").defaultNow().notNull(),
+  summary: text("summary").notNull(),
+  detail: text("detail").notNull(),
+});
+
 // ─── CONTROL-PLANE AUTH TABLES ───────────────────────────────────────────────
 // These tables are managed by Better Auth (control/auth/auth.config.ts).
 // NEVER DROP or RENAME these tables — the destructive-migration guard enforces this.
