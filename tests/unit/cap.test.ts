@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { canShipThisWeek } from "../../src/lib/engine/cap";
 import { makeTestDb } from "../helpers/testdb";
-import { countShipsSince } from "../../src/lib/engine/report-repo";
+import { countShipsSince, countShipsLast7Days } from "../../src/lib/engine/report-repo";
 
 describe("canShipThisWeek — pure function", () => {
   it("returns true when 0 ships this week (default cap 3)", () => {
@@ -86,5 +86,38 @@ describe("countShipsSince — PGlite integration", () => {
 
     const count = await countShipsSince(db, boundary);
     expect(count).toBe(1);
+  });
+});
+
+describe("countShipsLast7Days — PGlite integration", () => {
+  let db: Awaited<ReturnType<typeof makeTestDb>>;
+
+  beforeEach(async () => {
+    db = await makeTestDb();
+  });
+
+  it("counts only recent entries (2 recent + 1 old → 2)", async () => {
+    const { changelogEntries } = await import("../../drizzle/schema");
+
+    const now = Date.now();
+    const twoDaysAgo = new Date(now - 2 * 24 * 60 * 60 * 1000);
+    const fourDaysAgo = new Date(now - 4 * 24 * 60 * 60 * 1000);
+    const tenDaysAgo = new Date(now - 10 * 24 * 60 * 60 * 1000);
+
+    await db
+      .insert(changelogEntries)
+      .values({ title: "Recent ship 1", body: "body", shippedAt: twoDaysAgo })
+      .returning();
+    await db
+      .insert(changelogEntries)
+      .values({ title: "Recent ship 2", body: "body", shippedAt: fourDaysAgo })
+      .returning();
+    await db
+      .insert(changelogEntries)
+      .values({ title: "Old ship", body: "body", shippedAt: tenDaysAgo })
+      .returning();
+
+    const count = await countShipsLast7Days(db);
+    expect(count).toBe(2);
   });
 });

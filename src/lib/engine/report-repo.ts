@@ -3,7 +3,7 @@ import { desc, gte } from "drizzle-orm";
 
 // Minimal structural interface compatible with both node-postgres drizzle and PGlite drizzle.
 /* eslint-disable @typescript-eslint/no-explicit-any */
-type AnyDb = {
+export type AnyDb = {
   insert: (table: any) => {
     values: (v: any) => { returning: () => Promise<any[]> };
   };
@@ -34,7 +34,6 @@ export async function listReports(db: AnyDb, limit?: number) {
 
 /**
  * Count changelog entries with shippedAt >= sinceDate.
- * The caller computes the rolling 7-day window (e.g. new Date(Date.now() - 7 * 86400_000)).
  */
 export async function countShipsSince(db: AnyDb, sinceDate: Date): Promise<number> {
   const rows = (await db
@@ -42,4 +41,13 @@ export async function countShipsSince(db: AnyDb, sinceDate: Date): Promise<numbe
     .from(changelogEntries)
     .where(gte(changelogEntries.shippedAt, sinceDate))) as unknown[];
   return rows.length;
+}
+
+/**
+ * Count changelog entries shipped in the last 7 days (rolling window).
+ * Computes the cutoff date internally so callers don't need Date.now() during render.
+ */
+export async function countShipsLast7Days(db: AnyDb): Promise<number> {
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  return countShipsSince(db, cutoff);
 }
