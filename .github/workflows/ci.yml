@@ -19,22 +19,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history so --git-base can diff against base branch
+          fetch-depth: 0   # full history needed for --git-base diff against base branch
 
-      - uses: ariga/setup-atlas@v0
-
-      - name: Atlas migrate lint
+      - name: Block destructive schema migrations
         run: |
+          chmod +x scripts/check-migrations.sh
           if [ -n "${{ github.base_ref }}" ]; then
-            # Pull request: lint only the migrations added in this PR
-            atlas migrate lint \
-              --dev-url "docker://postgres/16/dev" \
-              --dir "file://drizzle/migrations" \
-              --git-base "${{ github.base_ref }}"
+            # Pull request: only check migrations added in this PR vs base branch
+            bash scripts/check-migrations.sh --git-base "${{ github.base_ref }}"
           else
-            # Direct push to branch: lint the single most-recent migration file
-            atlas migrate lint \
-              --dev-url "docker://postgres/16/dev" \
-              --dir "file://drizzle/migrations" \
-              --latest 1
+            # Direct push to branch: check the single most-recent migration file
+            bash scripts/check-migrations.sh --latest 1
           fi
