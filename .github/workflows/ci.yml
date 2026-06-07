@@ -1,0 +1,50 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      # CI-only non-secret values — rotate in prod via env secrets
+      BETTER_AUTH_SECRET: ci-only-not-a-real-secret-000000000000000000000000000000000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm vitest run
+      - run: pnpm db:migrate
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm exec playwright test
+
+  migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history needed for --git-base diff against base branch
+
+      - name: Block destructive schema migrations
+        run: |
+          chmod +x scripts/check-migrations.sh
+          if [ -n "${{ github.base_ref }}" ]; then
+            # Pull request: only check migrations added in this PR vs base branch
+            bash scripts/check-migrations.sh --git-base "${{ github.base_ref }}"
+          else
+            # Direct push to branch: check the single most-recent migration file
+            bash scripts/check-migrations.sh --latest 1
+          fi
