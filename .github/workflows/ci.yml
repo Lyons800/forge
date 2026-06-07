@@ -31,6 +31,18 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm exec playwright test
 
+  control-plane-guard:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'claude/')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Block agent edits to control-plane paths
+        run: |
+          chmod +x scripts/check-control-plane.sh
+          git diff --name-only origin/${{ github.base_ref }}...HEAD | bash scripts/check-control-plane.sh --stdin
+
   migrations:
     runs-on: ubuntu-latest
     steps:
