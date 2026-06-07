@@ -2,7 +2,12 @@
 
 Live: https://forge-lilac-beta.vercel.app
 Repo: https://github.com/Lyons800/forge (private)
-Phase 1 (Substrate) in progress on branch `phase1-substrate`.
+Phase 1 (Substrate) COMPLETE and merged to `main` (35 tests green). Phase 2 (Engine) plan written; not yet built.
+
+## Before the Engine can run autonomously (hard gates)
+1. Resolve control-plane enforcement: make repo PUBLIC or GitHub Pro (private+Free can't set branch protection — the mechanism that stops the agent editing its own guardrails).
+2. Provide prod credentials (see bottom) and go live with a real Neon DB.
+3. Upgrade the migration guard (custom script is v1; consider Atlas Pro / real schema-diff) per review.
 
 ## Done
 - **Milestone A** — Next.js scaffold, /api/health, Vitest, Playwright, CI `gate` (lint+unit+e2e), Vercel prod deploy.
