@@ -8,6 +8,11 @@
  * All side-effecting dependencies (vercel client, sentry signal, sleep) are
  * injected so the orchestrator is fully unit-testable without real timers or
  * network calls.
+ *
+ * CLI usage (I1): run via `pnpm tsx scripts/engine/canary-watch.ts`
+ * Required env vars: VERCEL_TOKEN, VERCEL_PROJECT_ID, SENTRY_TOKEN, SENTRY_ORG,
+ * SENTRY_PROJECT, CANARY_DEPLOYMENT_ID, PREVIOUS_DEPLOYMENT_ID.
+ * If any are absent the script logs a warning and exits cleanly (no throw).
  */
 
 import { shouldRollback } from "@/lib/canary";
@@ -104,4 +109,60 @@ export async function watchCanary(opts: WatchCanaryOpts): Promise<WatchResult> {
   }
 
   return { action: "max_checks_reached", checks };
+}
+
+// ─── CLI entry point ───────────────────────────────────────────────────────────
+// Only runs when this file is executed directly (pnpm tsx scripts/engine/canary-watch.ts).
+// Importing the module in tests does NOT trigger main.
+
+async function main() {
+  const token = process.env.VERCEL_TOKEN;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  const sentryToken = process.env.SENTRY_TOKEN;
+  const sentryOrg = process.env.SENTRY_ORG;
+  const sentryProject = process.env.SENTRY_PROJECT;
+  const canaryId = process.env.CANARY_DEPLOYMENT_ID;
+  const previousId = process.env.PREVIOUS_DEPLOYMENT_ID;
+
+  if (!token || !projectId || !sentryToken || !sentryOrg || !sentryProject || !canaryId || !previousId) {
+    console.warn(
+      "canary watch: missing required env vars " +
+      "(VERCEL_TOKEN, VERCEL_PROJECT_ID, SENTRY_TOKEN, SENTRY_ORG, SENTRY_PROJECT, " +
+      "CANARY_DEPLOYMENT_ID, PREVIOUS_DEPLOYMENT_ID). Skipping."
+    );
+    return;
+  }
+
+  // Lazy-import factory functions so the module remains importable without them
+  const { makeVercelClient } = await import("@/lib/engine/vercel-rollout");
+  const { makeSentrySignal } = await import("@/lib/engine/sentry-signal");
+
+  const vercel = makeVercelClient({ token, projectId });
+  const sentry = makeSentrySignal({ token: sentryToken, org: sentryOrg, project: sentryProject });
+
+  // Poll every 60 seconds for up to 20 checks (≥ 15 minutes of coverage)
+  const result = await watchCanary({
+    vercel,
+    sentry,
+    deploymentIds: { canary: canaryId, previous: previousId },
+    poll: 60_000,
+    maxChecks: 20,
+  });
+
+  console.log(`canary watch result: ${result.action} after ${result.checks} check(s)${result.reason ? ` — ${result.reason}` : ""}`);
+
+  if (result.action === "rolled_back") {
+    process.exit(1);
+  }
+}
+
+// ESM-compatible guard: only invoke main when this file is the entry point
+const isMain = process.argv[1]?.endsWith("canary-watch.ts") ||
+  process.argv[1]?.endsWith("canary-watch.js");
+
+if (isMain) {
+  main().catch((err) => {
+    console.error("canary watch: unexpected error", err);
+    process.exit(1);
+  });
 }

@@ -54,14 +54,21 @@ null db) — log a warning if unavailable, then continue:
 - Rank approved items by recency and estimated user impact.
 
 ### 2b. Sentry error signals
-- Use `getSentryTopErrors()` from `src/lib/engine/sentry-signal.ts`
-  (if `SENTRY_DSN` is set in env).
-- Note the top 3 errors by event count. These are candidate triage items.
+- Construct a Sentry signal using `makeSentrySignal({token, org, project})` from
+  `@/lib/engine/sentry-signal` (requires `SENTRY_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`
+  env vars; if any are absent, log a warning and continue without this signal).
+- Call `signal.getErrorRates({baselineDeployment, canaryDeployment})` to obtain
+  `{ baseline, canary, samples }`. Use the most recent production deployment as the
+  baseline and the latest canary (if any) as the canary.
+- Note elevated error rates. These are candidate triage items.
 
 ### 2c. PostHog usage signals
-- Use `getPostHogFeatureUsage()` from `src/lib/posthog.ts`
-  (if `NEXT_PUBLIC_POSTHOG_KEY` is set in env).
-- Note underused features and high-engagement patterns.
+- **v1: manual / optional.** There is no server-side PostHog helper yet.
+  Read feature-usage patterns directly from the PostHog dashboard or API at
+  `https://eu.posthog.com` (project-scoped at `/project/<id>`).
+- If `NEXT_PUBLIC_POSTHOG_KEY` is absent, skip this signal silently — log a
+  one-line warning (`"PostHog signal unavailable: NEXT_PUBLIC_POSTHOG_KEY not set. Skipping."`)
+  and continue. Never fail the run because of a missing PostHog signal.
 
 ---
 
@@ -74,7 +81,7 @@ Compose a report with:
 
 Persist it:
 ```typescript
-import { insertReport } from "src/lib/engine/report-repo";
+import { insertReport } from "@/lib/engine/report-repo";
 await insertReport(db, { summary, detail });
 ```
 
@@ -86,8 +93,8 @@ of whether the engine ships today.
 ## Step 4 — Check the Weekly Ship Cap
 
 ```typescript
-import { countShipsSince } from "src/lib/engine/report-repo";
-import { canShipThisWeek } from "src/lib/engine/cap";
+import { countShipsSince } from "@/lib/engine/report-repo";
+import { canShipThisWeek } from "@/lib/engine/cap";
 
 const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 const shipsThisWeek = await countShipsSince(db, since);
@@ -188,9 +195,12 @@ Once all three CI checks are green:
 2. Wait for the Vercel deployment to complete.
 3. Run the canary watch:
    ```
-   npx ts-node scripts/engine/canary-watch.ts
+   pnpm tsx scripts/engine/canary-watch.ts
    ```
    This watches the Sentry error rate for ≥ 15 minutes after deploy.
+   If required env vars (`VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, `SENTRY_TOKEN`,
+   `SENTRY_ORG`, `SENTRY_PROJECT`, `CANARY_DEPLOYMENT_ID`, `PREVIOUS_DEPLOYMENT_ID`)
+   are absent, the script will log a warning and exit cleanly (no throw).
 4. If the canary watch reports a regression (error rate increased):
    - **Roll back immediately**: `git revert <merge-commit>`, push, open a
      revert PR, merge it.
@@ -204,7 +214,7 @@ Once all three CI checks are green:
 Once the canary watch passes (no regression):
 
 ```typescript
-import { publishShip } from "src/lib/engine/publish";
+import { publishShip } from "@/lib/engine/publish";
 await publishShip(db, {
   reportSummary: "...",  // 1-sentence summary for the engine report
   reportDetail: "...",   // structured detail for the engine report
@@ -258,12 +268,13 @@ Violating any of them is a constitutional breach:
 
 | Function | Module | Purpose |
 |----------|--------|---------|
-| `isEngineEnabled()` | `src/lib/engine/kill-switch.ts` | Kill switch check |
-| `listApprovedSubmissions(db)` | `src/lib/board/repo.ts` | Approved board items only |
-| `insertReport(db, {summary, detail})` | `src/lib/engine/report-repo.ts` | Persist daily report |
-| `listReports(db, limit?)` | `src/lib/engine/report-repo.ts` | Read engine reports |
-| `countShipsSince(db, since)` | `src/lib/engine/report-repo.ts` | Count ships in 7d window |
-| `canShipThisWeek(count, cap=3)` | `src/lib/engine/cap.ts` | Ship-cap check |
-| `publishShip(db, opts)` | `src/lib/engine/publish.ts` | Persist report + changelog |
-| `listChangelogEntries(db)` | `src/lib/changelog/repo.ts` | Read changelog |
-| `db` | `src/lib/db.ts` | DB client (null if no DATABASE_URL — guard!) |
+| `isEngineEnabled()` | `@/lib/engine/kill-switch` | Kill switch check |
+| `listApprovedSubmissions(db)` | `@/lib/board/repo` | Approved board items only |
+| `insertReport(db, {summary, detail})` | `@/lib/engine/report-repo` | Persist daily report |
+| `listReports(db, limit?)` | `@/lib/engine/report-repo` | Read engine reports |
+| `countShipsSince(db, since)` | `@/lib/engine/report-repo` | Count ships in 7d window |
+| `canShipThisWeek(count, cap=3)` | `@/lib/engine/cap` | Ship-cap check |
+| `publishShip(db, opts)` | `@/lib/engine/publish` | Persist report + changelog |
+| `listChangelogEntries(db)` | `@/lib/changelog/repo` | Read changelog |
+| `makeSentrySignal({token,org,project})` | `@/lib/engine/sentry-signal` | Construct Sentry signal client |
+| `db` | `@/lib/db` | DB client (null if no DATABASE_URL — guard!) |
