@@ -9,6 +9,8 @@ type AnyDb = {
   select: () => {
     from: (table: any) => any;
   };
+  /** Drizzle transaction — used to make publishShip atomic (I4). */
+  transaction: <T>(fn: (tx: AnyDb) => Promise<T>) => Promise<T>;
 };
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -16,8 +18,12 @@ type AnyDb = {
  * Publish a daily ship: persists the engine report AND appends a changelog entry
  * so the ship appears on the public Build-Log.
  *
- * Thin composition of insertReport + insertChangelogEntry — no transaction
- * wrapping needed at this scale; both inserts are idempotent enough for the engine.
+ * Wrapped in a Drizzle transaction (I4) so both inserts are all-or-nothing —
+ * prevents a stale changelog entry with no matching report (or vice-versa) from
+ * corrupting the ship cap accounting.
+ *
+ * PGlite (used in unit tests) fully supports transactions via savepoints, so
+ * existing tests continue to pass without modification.
  */
 export async function publishShip(
   db: AnyDb,
@@ -28,15 +34,17 @@ export async function publishShip(
     changelogBody: string;
   }
 ) {
-  const report = await insertReport(db, {
-    summary: opts.reportSummary,
-    detail: opts.reportDetail,
-  });
+  return db.transaction(async (tx) => {
+    const report = await insertReport(tx, {
+      summary: opts.reportSummary,
+      detail: opts.reportDetail,
+    });
 
-  const entry = await insertChangelogEntry(db, {
-    title: opts.changelogTitle,
-    body: opts.changelogBody,
-  });
+    const entry = await insertChangelogEntry(tx, {
+      title: opts.changelogTitle,
+      body: opts.changelogBody,
+    });
 
-  return { report, entry };
+    return { report, entry };
+  });
 }

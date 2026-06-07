@@ -25,11 +25,13 @@ export async function insertReport(
 }
 
 export async function listReports(db: AnyDb, limit?: number) {
-  const rows = (await db
+  // I5: push the limit to the DB via Drizzle .limit() instead of in-memory .slice()
+  const query = db
     .select()
     .from(engineReports)
-    .orderBy(desc(engineReports.runDate))) as (typeof engineReports.$inferSelect)[];
-  return limit !== undefined ? rows.slice(0, limit) : rows;
+    .orderBy(desc(engineReports.runDate));
+  const rows = (await (limit !== undefined ? query.limit(limit) : query)) as (typeof engineReports.$inferSelect)[];
+  return rows;
 }
 
 /**
