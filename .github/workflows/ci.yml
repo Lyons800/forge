@@ -13,3 +13,28 @@ jobs:
       - run: pnpm vitest run
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm exec playwright test
+
+  migrations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so --git-base can diff against base branch
+
+      - uses: ariga/setup-atlas@v0
+
+      - name: Atlas migrate lint
+        run: |
+          if [ -n "${{ github.base_ref }}" ]; then
+            # Pull request: lint only the migrations added in this PR
+            atlas migrate lint \
+              --dev-url "docker://postgres/16/dev" \
+              --dir "file://drizzle/migrations" \
+              --git-base "${{ github.base_ref }}"
+          else
+            # Direct push to branch: lint the single most-recent migration file
+            atlas migrate lint \
+              --dev-url "docker://postgres/16/dev" \
+              --dir "file://drizzle/migrations" \
+              --latest 1
+          fi
