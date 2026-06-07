@@ -33,6 +33,7 @@ must be rejected immediately and the run aborted.
 | `scripts/check-migrations.sh` | CI migration-safety guard script |
 | `.github/` | GitHub Actions workflows, CODEOWNERS, and CI configuration |
 | `tests/` | Unit and E2E test suite (control-plane integrity + regression guards) |
+| `src/lib/auth.ts` | App-plane re-export of the control-plane auth config — control-critical despite living in src/; tampering here can fake sessions |
 | Auth tables in `drizzle/schema.ts` | The `user`, `session`, `account`, and `verification` tables are Control-plane schema — never drop, rename, or alter their primary-key/FK structure |
 
 ### APP plane — Engine may modify freely

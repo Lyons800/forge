@@ -5,26 +5,19 @@ import { isBreakGlass } from "@/lib/auth-admin";
  * Break-glass recovery panel.
  *
  * Access via:
- *   ?token=<BREAK_GLASS_TOKEN>                (query string)
- *   X-Break-Glass-Token: <token>              (header)
+ *   X-Break-Glass-Token: <token>              (header — only accepted method)
  *
  * The token lives ONLY in env secrets. It is never stored in source code,
  * database, or cookies — so an autonomous agent cannot forge it.
+ *
+ * The ?token= query-string method has been removed to prevent the break-glass
+ * token from appearing in URLs and leaking to analytics / logs / referrers.
  */
-export default async function AdminPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ token?: string }>;
-}) {
-  const params = await searchParams;
-  const queryToken = params.token;
-
+export default async function AdminPage() {
   const reqHeaders = await headers();
   const headerToken = reqHeaders.get("x-break-glass-token") ?? undefined;
 
-  const token = queryToken ?? headerToken;
-
-  if (!isBreakGlass(token)) {
+  if (!isBreakGlass(headerToken)) {
     return (
       <main style={{ padding: "2rem", fontFamily: "sans-serif" }}>
         <h1>Access Denied</h1>

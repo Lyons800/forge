@@ -4,3 +4,4 @@
 /scripts/check-migrations.sh @Lyons800
 /.github/                   @Lyons800
 /tests/                     @Lyons800
+/src/lib/auth.ts            @Lyons800

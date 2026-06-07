@@ -4,6 +4,23 @@
  * All exports are safe no-ops when the key is absent.
  */
 
+/**
+ * Strip sensitive query parameters from a search string before sending to PostHog.
+ * Currently strips: token
+ * @param search - the raw query string (e.g. "?token=abc&foo=bar" or "token=abc&foo=bar")
+ * @returns sanitised query string without the leading "?" (empty string if no params remain)
+ */
+export function stripSensitiveParams(search: string): string {
+  const SENSITIVE_KEYS = new Set(["token"]);
+  const raw = search.startsWith("?") ? search.slice(1) : search;
+  if (!raw) return "";
+  const params = new URLSearchParams(raw);
+  for (const key of SENSITIVE_KEYS) {
+    params.delete(key);
+  }
+  return params.toString();
+}
+
 let _initialised = false;
 
 function init(): void {

@@ -2,7 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
-import { capture } from "@/lib/posthog";
+import { capture, stripSensitiveParams } from "@/lib/posthog";
 
 /**
  * Fires a `$pageview` capture on every client-side route change.
@@ -14,9 +14,8 @@ export function PostHogPageView() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const url =
-      pathname +
-      (searchParams.toString() ? `?${searchParams.toString()}` : "");
+    const sanitised = stripSensitiveParams(searchParams.toString());
+    const url = pathname + (sanitised ? `?${sanitised}` : "");
     capture("$pageview", { $current_url: url });
   }, [pathname, searchParams]);
 
