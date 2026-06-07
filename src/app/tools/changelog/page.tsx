@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { generateChangelogMarkdown } from "@/lib/changelog/generate";
+import { capture } from "@/lib/posthog";
 
 type Entry = { id: number; title: string; body: string; shippedAt: string };
 
@@ -37,6 +38,7 @@ export default function ChangelogToolPage() {
       }
       const newEntry: Entry = await res.json();
       setEntries((prev) => [newEntry, ...prev]);
+      capture("tool_used", { tool: "changelog", entry_id: newEntry.id });
       setTitle("");
       setBody("");
       setStatus("idle");

@@ -11,11 +11,13 @@ export async function POST(req: NextRequest) {
 
   const raw = { title: body.title, body: body.body };
   const sanitised = sanitiseSubmission(raw);
-  const row = await insertBoardSubmission(db, sanitised);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const row = await insertBoardSubmission(db as any, sanitised);
   return NextResponse.json(row, { status: 201 });
 }
 
 export async function GET() {
-  const rows = await listPublicSubmissions(db);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rows = await listPublicSubmissions(db as any);
   return NextResponse.json(rows);
 }

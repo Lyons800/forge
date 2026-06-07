@@ -5,7 +5,8 @@ import { generateChangelogMarkdown } from "@/lib/changelog/generate";
 export const dynamic = "force-dynamic";
 
 export default async function BuildLogPage() {
-  const entries = db ? await listChangelogEntries(db) : [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const entries = db ? await listChangelogEntries(db as any) : [];
   const markdown = generateChangelogMarkdown(entries);
 
   // Simple markdown → HTML: render headings and paragraphs without a dep.

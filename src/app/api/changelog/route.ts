@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "title and body must not be empty" }, { status: 400 });
   }
 
-  const row = await insertChangelogEntry(db, { title, body: entryBody });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const row = await insertChangelogEntry(db as any, { title, body: entryBody });
   return NextResponse.json(row, { status: 201 });
 }

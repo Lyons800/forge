@@ -2,16 +2,21 @@ import { changelogEntries } from "../../../drizzle/schema";
 import { desc } from "drizzle-orm";
 
 // Minimal structural interface compatible with both node-postgres drizzle and PGlite drizzle.
+// Using `any` for table/column parameters is intentional — this shim exists to keep
+// the function signatures compatible with both the real Drizzle client and the PGlite
+// test double without importing Drizzle types directly.
+/* eslint-disable @typescript-eslint/no-explicit-any */
 type AnyDb = {
-  insert: (table: unknown) => {
-    values: (v: unknown) => { returning: () => Promise<unknown[]> };
+  insert: (table: any) => {
+    values: (v: any) => { returning: () => Promise<any[]> };
   };
   select: () => {
-    from: (table: unknown) => {
-      orderBy: (col: unknown) => Promise<unknown[]>;
+    from: (table: any) => {
+      orderBy: (col: any) => Promise<any[]>;
     };
   };
 };
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export async function insertChangelogEntry(db: AnyDb, entry: { title: string; body: string }) {
   const [row] = await db

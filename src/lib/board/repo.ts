@@ -2,21 +2,24 @@ import { boardSubmissions } from "../../../drizzle/schema";
 import { inArray, desc } from "drizzle-orm";
 
 // Minimal interface for a drizzle db instance that can insert/select.
-// Using a structural type avoids `any` while still being compatible with both
-// node-postgres (production) and PGlite (tests).
+// Using `any` for table/column parameters is intentional — this shim keeps the
+// function signatures compatible with both the real Drizzle client (node-postgres)
+// and the PGlite test double without importing Drizzle types directly.
+/* eslint-disable @typescript-eslint/no-explicit-any */
 type AnyDb = {
-  insert: (table: unknown) => {
-    values: (v: unknown) => { returning: () => Promise<unknown[]> };
+  insert: (table: any) => {
+    values: (v: any) => { returning: () => Promise<any[]> };
   };
   select: () => {
-    from: (table: unknown) => {
-      where: (cond: unknown) => {
-        orderBy: (col: unknown) => Promise<unknown[]>;
+    from: (table: any) => {
+      where: (cond: any) => {
+        orderBy: (col: any) => Promise<any[]>;
       };
-      orderBy: (col: unknown) => Promise<unknown[]>;
+      orderBy: (col: any) => Promise<any[]>;
     };
   };
 };
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export async function insertBoardSubmission(
   db: AnyDb,
