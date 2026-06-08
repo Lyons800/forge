@@ -30,8 +30,8 @@ export default async function BuildLogPage() {
       <main className={styles.main}>
         {/* Header */}
         <header className={styles.header}>
-          <p className={styles.eyebrow}>Build Log</p>
-          <h1 className={styles.heading}>Every ship, in public.</h1>
+          <h1 className={styles.heading}>Build Log</h1>
+          <p className={styles.heroThesis}>Every ship, in public.</p>
           <p className={styles.sub}>
             Each entry below was autonomously written, tested, and deployed by
             the Forge engine. No human committed the code — just guardrails.
