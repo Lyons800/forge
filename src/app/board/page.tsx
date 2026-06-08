@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+import { statusLabel, statusTone } from "@/lib/board/format";
+import styles from "./page.module.css";
 
 type Submission = { id: number; title: string; body: string; status: string; createdAt: string };
 
@@ -57,83 +60,137 @@ export default function BoardPage() {
   };
 
   return (
-    <main style={{ padding: "2rem", fontFamily: "sans-serif", maxWidth: 700 }}>
-      <h1>Improvement Board</h1>
-      <p style={{ color: "#666" }}>
-        Submit ideas or improvement requests for Forge.{" "}
-        <em>All submissions are moderated before appearing below.</em>
-      </p>
-
-      {submitStatus === "done" && (
-        <p style={{ color: "green" }} data-testid="submit-success">
-          Submitted! Your idea is pending moderation.
-        </p>
-      )}
-      {submitStatus === "error" && (
-        <p style={{ color: "red" }} data-testid="submit-error">
-          {errorMsg}
-        </p>
-      )}
-
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.5rem" }}>
-        <input
-          type="text"
-          placeholder="Title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          data-testid="board-title"
-          style={{ padding: "0.4rem" }}
-        />
-        <textarea
-          placeholder="Body"
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          data-testid="board-body"
-          rows={4}
-          style={{ padding: "0.4rem" }}
-        />
-        <button
-          onClick={handleSubmit}
-          disabled={submitStatus === "submitting"}
-          data-testid="board-submit"
-          style={{ padding: "0.5rem 1rem", alignSelf: "flex-start" }}
-        >
-          {submitStatus === "submitting" ? "Submitting…" : "Submit"}
-        </button>
-      </div>
-
-      <h2>Pending Ideas</h2>
-      {submissions.length === 0 ? (
-        <p style={{ color: "#888" }} data-testid="board-empty">No ideas yet.</p>
-      ) : (
-        <ul style={{ listStyle: "none", padding: 0 }} data-testid="board-list">
-          {submissions.map((s) => (
-            <li
-              key={s.id}
-              data-testid={`board-item-${s.id}`}
-              style={{
-                border: "1px solid #ddd",
-                borderRadius: 4,
-                padding: "0.75rem",
-                marginBottom: "0.75rem",
-              }}
-            >
-              <strong>{s.title}</strong>
-              <span
-                style={{
-                  marginLeft: "0.5rem",
-                  fontSize: "0.75rem",
-                  color: "#888",
-                  textTransform: "uppercase",
-                }}
-              >
-                [{s.status}]
-              </span>
-              <p style={{ margin: "0.25rem 0 0" }}>{s.body}</p>
-            </li>
-          ))}
+    <div className={styles.page}>
+      {/* Nav */}
+      <nav className={styles.nav} aria-label="Main navigation">
+        <Link href="/" className={styles.navBrand}>Forge</Link>
+        <ul className={styles.navLinks}>
+          <li><Link href="/tools/changelog">Tools</Link></li>
+          <li><Link href="/changelog">Build Log</Link></li>
+          <li><Link href="/board" className={styles.navActive}>Board</Link></li>
+          <li><Link href="/engine">Engine</Link></li>
+          <li><Link href="/sign-in">Sign in</Link></li>
         </ul>
-      )}
-    </main>
+      </nav>
+
+      <main className={styles.main}>
+        {/* Header */}
+        <header className={styles.header}>
+          <p className={styles.eyebrow}>Improvement Board</p>
+          <h1 className={styles.heading}>Shape what Forge builds next.</h1>
+          <p className={styles.sub}>
+            Submit an idea or improvement request. The autonomous engine reads
+            the board as a signal source when deciding what to ship.{" "}
+            <em className={styles.moderationNote}>
+              All submissions are moderated before appearing below.
+            </em>
+          </p>
+        </header>
+
+        {/* Submit form */}
+        <section className={styles.formSection} aria-label="Submit an idea">
+          <h2 className={styles.formHeading}>Submit an idea</h2>
+
+          <div className={styles.form}>
+            <input
+              type="text"
+              placeholder="Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              data-testid="board-title"
+              className={styles.input}
+              aria-label="Idea title"
+            />
+            <textarea
+              placeholder="Describe your idea or improvement request…"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              data-testid="board-body"
+              rows={4}
+              className={styles.textarea}
+              aria-label="Idea description"
+            />
+            <div className={styles.formFooter}>
+              <button
+                onClick={handleSubmit}
+                disabled={submitStatus === "submitting"}
+                data-testid="board-submit"
+                className={styles.submitButton}
+              >
+                {submitStatus === "submitting" ? "Submitting…" : "Submit idea"}
+              </button>
+
+              {submitStatus === "done" && (
+                <p className={styles.feedbackOk} data-testid="submit-success" role="status">
+                  Submitted — your idea is pending moderation.
+                </p>
+              )}
+              {submitStatus === "error" && (
+                <p className={styles.feedbackError} data-testid="submit-error" role="alert">
+                  {errorMsg}
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* List */}
+        <section className={styles.listSection} aria-label="Submitted ideas">
+          <div className={styles.listHeader}>
+            <h2 className={styles.listHeading}>Ideas</h2>
+            {submissions.length > 0 && (
+              <span className={styles.count}>
+                {submissions.length} {submissions.length === 1 ? "idea" : "ideas"}
+              </span>
+            )}
+          </div>
+
+          {submissions.length === 0 ? (
+            <div className={styles.empty} data-testid="board-empty">
+              <span className={styles.emptyIcon} aria-hidden="true">⬡</span>
+              No ideas yet — be the first to suggest one.
+            </div>
+          ) : (
+            <ul className={styles.list} data-testid="board-list">
+              {submissions.map((s) => {
+                const tone = statusTone(s.status);
+                return (
+                  <li key={s.id} data-testid={`board-item-${s.id}`} className={styles.item}>
+                    <div className={styles.itemHead}>
+                      <h3 className={styles.itemTitle}>{s.title}</h3>
+                      <span
+                        className={`${styles.statusPill} ${
+                          tone === "accent" ? styles.statusAccent : styles.statusNeutral
+                        }`}
+                      >
+                        {statusLabel(s.status)}
+                      </span>
+                    </div>
+                    <p className={styles.itemBody}>{s.body}</p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer className={styles.footer}>
+        <p>
+          <a
+            href="https://github.com/Lyons800/forge"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub
+          </a>
+          <span className={styles.footerSep} aria-hidden="true" />
+          <Link href="/changelog">Build Log</Link>
+          <span className={styles.footerSep} aria-hidden="true" />
+          Built autonomously by Forge.
+        </p>
+      </footer>
+    </div>
   );
 }
