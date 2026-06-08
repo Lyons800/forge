@@ -1,0 +1,71 @@
+name: engine-implementer
+
+# The Forge Implementer engine (see CONSTITUTION.md §4 + control/engine/OPERATING_PROMPT.md).
+# Runs as the "Forge Implementer" GitHub App identity. It opens claude/* PRs and never merges.
+#
+# COST + SAFETY GATING:
+#   - The `implement` job only runs when the repo VARIABLE `ENGINE_ENABLED == 'true'`.
+#     Until the owner sets that variable, every run is skipped -> ZERO Anthropic metered spend.
+#   - timeout-minutes bounds runaway cost.
+#   - concurrency prevents overlapping runs.
+#   - Per CONSTITUTION.md §3.6, scheduled runs are capped at one per 24h (the cron is daily).
+
+on:
+  schedule:
+    # Daily at 09:00 UTC (one bounded scheduled run per day — Constitution §3.6).
+    - cron: "0 9 * * *"
+  workflow_dispatch: {}
+
+# Minimal workflow-level permissions. The app token (not GITHUB_TOKEN) is what actually
+# pushes branches and opens PRs; this only governs the default GITHUB_TOKEN.
+permissions:
+  contents: read
+
+concurrency:
+  group: engine-implementer
+  cancel-in-progress: false
+
+jobs:
+  implement:
+    # MASTER ON-SWITCH: skipped (no cost) until the owner sets repo variable ENGINE_ENABLED=true.
+    if: ${{ vars.ENGINE_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Generate Implementer App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.IMPLEMENTER_APP_ID }}
+          private-key: ${{ secrets.IMPLEMENTER_APP_PRIVATE_KEY }}
+
+      - name: Checkout (full history for branching + diffs)
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
+
+      - name: Run Forge Implementer engine
+        uses: anthropics/claude-code-action@v1
+        with:
+          github_token: ${{ steps.app-token.outputs.token }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are the Forge implementer engine. Read and obey
+            control/engine/OPERATING_PROMPT.md and CONSTITUTION.md exactly for
+            today's run. Gather signals, decide as a PM, implement ONE top item
+            on a claude/<date>-<slug> branch with a new test, open a PR. Do NOT
+            merge (the reviewer does that). Never touch control-plane paths.
+          # Pass runtime env to the engine's Claude Code process via the settings.env block.
+          #   - DATABASE_URL: read the prod board (listBoardSignals).
+          #   - ENGINE_ENABLED: lets the engine pass its own kill-switch check.
+          # NOTE: PostHog / Sentry / Vercel creds are optional — add them here later to
+          #       enable the usage signal + canary watch. The engine degrades gracefully
+          #       without them for now.
+          settings: |
+            {
+              "env": {
+                "DATABASE_URL": "${{ secrets.DATABASE_URL }}",
+                "ENGINE_ENABLED": "true"
+              }
+            }

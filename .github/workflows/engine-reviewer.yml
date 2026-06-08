@@ -1,0 +1,70 @@
+name: engine-reviewer
+
+# The Forge Reviewer agent (see CONSTITUTION.md §4 + control/engine/REVIEWER_PROMPT.md).
+# Runs as the "Forge Reviewer" GitHub App identity. It independently reviews the
+# implementer's own claude/* PRs, then approves + squash-merges or requests changes.
+# It NEVER edits files and NEVER opens PRs.
+#
+# COST + SAFETY GATING:
+#   - The `review` job only runs when repo VARIABLE ENGINE_ENABLED == 'true' AND the PR's
+#     head branch starts with `claude/` (i.e. only the engine's own PRs). Human PRs and
+#     forks are skipped -> ZERO Anthropic metered spend on anything but engine PRs.
+#   - timeout-minutes bounds cost AND gives the reviewer headroom to poll the other
+#     required checks (gate / migrations / control-plane-guard) until they go green.
+#   - concurrency is keyed per-PR so re-pushes supersede stale reviews.
+#   - Minimal workflow-level permissions; the app token does the real work.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: engine-reviewer-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # Gate: master on-switch AND only the engine's own claude/* PRs.
+    if: ${{ vars.ENGINE_ENABLED == 'true' && startsWith(github.head_ref, 'claude/') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Generate Reviewer App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.REVIEWER_APP_ID }}
+          private-key: ${{ secrets.REVIEWER_APP_PRIVATE_KEY }}
+
+      - name: Checkout (full history for diff review)
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
+
+      - name: Run Forge Reviewer agent
+        uses: anthropics/claude-code-action@v1
+        with:
+          github_token: ${{ steps.app-token.outputs.token }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are the Forge reviewer agent. Read and obey
+            control/engine/REVIEWER_PROMPT.md and CONSTITUTION.md §4.
+            Independently review THIS pull request (number
+            ${{ github.event.pull_request.number }}); verify the mandatory gates
+            and judgment dimensions; if it passes, approve and squash-merge;
+            otherwise request changes. NEVER edit files; NEVER merge with red
+            checks or control-plane edits.
+          # The reviewer must wait for the other required checks
+          # (gate / migrations / control-plane-guard) to go green before merging.
+          # Its prompt already handles polling; the 20-minute job timeout gives it headroom.
+          settings: |
+            {
+              "env": {
+                "ENGINE_ENABLED": "true"
+              }
+            }
