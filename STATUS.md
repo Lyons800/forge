@@ -18,7 +18,13 @@ The Engine code exists but is NOT activated (it's default-OFF and unscheduled). 
 1. ✅ **Control-plane enforcement DONE (2026-06-08)** — repo is PUBLIC; branch protection on `main` requires `gate` + `migrations` + `control-plane-guard` (strict, no force-push). The control plane is now genuinely immutable: a `claude/*` PR touching control-plane paths fails `control-plane-guard` and cannot merge. (`control-plane-guard` always runs but only enforces on `claude/*` PRs, so it's a valid required check. `enforce_admins=false` so the human owner keeps maintenance access; the agent is gated by being a non-admin token.)
 2. ✅ **Production live DONE** — Neon DB + migrations + Vercel prod env + deploy verified.
 3. ⛔ **Scoped agent token (REMAINING)** — a GitHub identity/token that can push `claude/*` + open/merge PRs but is NOT admin (can't bypass checks / change protection / read prod secrets).
-4. ⛔ **Then** create the daily Routine (`control/engine/OPERATING_PROMPT.md`), set `ENGINE_ENABLED=true`, and run the OBSERVED WARM-UP (watch first ~5 runs before flipping to full-auto). Kill switch = unset `ENGINE_ENABLED`.
+4. 🔄 **Observed warm-up IN PROGRESS** — run #1 DONE (2026-06-08): engine took an approved board item → shipped `GET /api/changelog/feed` on a `claude/` branch → all 3 required checks passed → human-approved → merged (PR #2) → auto-deployed → live. Guardrails held; control-plane-guard correctly allowed the new test. Do ~4 more supervised runs, then create the scoped token + schedule the daily Routine + set `ENGINE_ENABLED=true` for full-auto. Kill switch = unset `ENGINE_ENABLED`.
+
+## Findings to address before unattended runs
+- **No `approved` mechanism**: board items can only become `pending`/`needs_review` via the public API; nothing marks them `approved` (the engine's only fuel). Need an owner approve action (admin UI or endpoint) before the engine can run unsupervised.
+- **Guard fix shipped (2026-06-08)**: engine may ADD tests but not modify/delete existing ones (`scripts/check-control-plane.sh --name-status`).
+- Verify the engine's **publish step** (writing its changelog entry to the Build-Log) in a future supervised run.
+- Migration guard still grep-based (upgrade to real schema-diff before high-frequency autonomy).
 
 ## Done — Phase 1 (Substrate)
 - A: Next.js + Vercel deploy + CI gate. B1: Drizzle/Neon(node-postgres)/PGlite harness. B2: destructive-migration guard `scripts/check-migrations.sh` (blocks DROP/RENAME/TRUNCATE; tested). C: Better Auth (core in `control/`, break-glass off-repo). D2: changelog tool. E1: public Build-Log. E2: moderated board (`needs_review` quarantined at SQL layer). F1/F2: Sentry+PostHog (env-gated). G1: CONSTITUTION.md + CODEOWNERS.
