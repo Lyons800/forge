@@ -14,11 +14,11 @@ The Engine code exists but is NOT activated (it's default-OFF and unscheduled). 
 - NOT yet set (optional, env-gated): `NEXT_PUBLIC_POSTHOG_KEY`(+host), `SENTRY_DSN`. App works without them.
 - Vercel git auto-deploy is connected → pushes to `main` deploy automatically.
 
-## ⛔ Hard gates before the Engine can run autonomously
-1. **Control-plane enforcement** — make repo PUBLIC (free, on-brand) or GitHub Pro, then turn on branch protection requiring `gate` + `migrations` + `control-plane-guard`. Until then the "AI can't edit its own guardrails" guarantee is advisory only (the guard runs in CI but nothing forces it without protection).
-2. **Production credentials + go live** — Neon (PITR on) `DATABASE_URL`; `BETTER_AUTH_SECRET`, `BREAK_GLASS_TOKEN`, `SENTRY_DSN`, `NEXT_PUBLIC_POSTHOG_KEY`(+host) in Vercel. Confirm sign-up/tool/board/build-log work in prod.
-3. **Scoped agent token** — a GitHub identity that can push `claude/*` + open PRs but is NOT admin (can't bypass checks / change protection / read prod secrets).
-4. **Then** create the daily Routine (`control/engine/OPERATING_PROMPT.md`), set `ENGINE_ENABLED=true`, and run the OBSERVED WARM-UP (watch first ~5 runs before flipping to full-auto). Kill switch = unset `ENGINE_ENABLED`.
+## Hard gates before the Engine can run autonomously
+1. ✅ **Control-plane enforcement DONE (2026-06-08)** — repo is PUBLIC; branch protection on `main` requires `gate` + `migrations` + `control-plane-guard` (strict, no force-push). The control plane is now genuinely immutable: a `claude/*` PR touching control-plane paths fails `control-plane-guard` and cannot merge. (`control-plane-guard` always runs but only enforces on `claude/*` PRs, so it's a valid required check. `enforce_admins=false` so the human owner keeps maintenance access; the agent is gated by being a non-admin token.)
+2. ✅ **Production live DONE** — Neon DB + migrations + Vercel prod env + deploy verified.
+3. ⛔ **Scoped agent token (REMAINING)** — a GitHub identity/token that can push `claude/*` + open/merge PRs but is NOT admin (can't bypass checks / change protection / read prod secrets).
+4. ⛔ **Then** create the daily Routine (`control/engine/OPERATING_PROMPT.md`), set `ENGINE_ENABLED=true`, and run the OBSERVED WARM-UP (watch first ~5 runs before flipping to full-auto). Kill switch = unset `ENGINE_ENABLED`.
 
 ## Done — Phase 1 (Substrate)
 - A: Next.js + Vercel deploy + CI gate. B1: Drizzle/Neon(node-postgres)/PGlite harness. B2: destructive-migration guard `scripts/check-migrations.sh` (blocks DROP/RENAME/TRUNCATE; tested). C: Better Auth (core in `control/`, break-glass off-repo). D2: changelog tool. E1: public Build-Log. E2: moderated board (`needs_review` quarantined at SQL layer). F1/F2: Sentry+PostHog (env-gated). G1: CONSTITUTION.md + CODEOWNERS.
