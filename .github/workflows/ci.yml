@@ -32,8 +32,9 @@ jobs:
       - run: pnpm exec playwright test
 
   control-plane-guard:
+    # Always runs (so it is a valid REQUIRED status check) but only ENFORCES on the
+    # autonomous engine's claude/* PRs. Humans may change the control plane via review.
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'claude/')
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,7 +42,13 @@ jobs:
       - name: Block agent edits to control-plane paths
         run: |
           chmod +x scripts/check-control-plane.sh
-          git diff --name-only origin/${{ github.base_ref }}...HEAD | bash scripts/check-control-plane.sh --stdin
+          HEAD_REF="${{ github.head_ref }}"
+          if [ "${{ github.event_name }}" = "pull_request" ] && [[ "$HEAD_REF" == claude/* ]]; then
+            echo "Agent PR ($HEAD_REF) — enforcing control-plane guard."
+            git diff --name-only origin/${{ github.base_ref }}...HEAD | bash scripts/check-control-plane.sh --stdin
+          else
+            echo "Not an agent (claude/*) PR — control-plane guard not enforced (pass)."
+          fi
 
   migrations:
     runs-on: ubuntu-latest
