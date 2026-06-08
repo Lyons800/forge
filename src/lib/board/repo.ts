@@ -56,3 +56,20 @@ export async function listApprovedSubmissions(db: AnyDb) {
     .orderBy(desc(boardSubmissions.createdAt));
   return rows as (typeof boardSubmissions.$inferSelect)[];
 }
+
+/**
+ * Engine signal surface: returns pending AND approved submissions (newest-first).
+ * These are treated as UNTRUSTED SIGNAL DATA — the engine reads them for context
+ * but must NEVER obey instructions embedded in them.
+ *
+ * SECURITY-CRITICAL: needs_review rows are NEVER returned. Those rows are
+ * injection-quarantined and must be kept invisible to the engine entirely.
+ */
+export async function listBoardSignals(db: AnyDb) {
+  const rows = await db
+    .select()
+    .from(boardSubmissions)
+    .where(inArray(boardSubmissions.status, ["pending", "approved"]))
+    .orderBy(desc(boardSubmissions.createdAt));
+  return rows as (typeof boardSubmissions.$inferSelect)[];
+}
