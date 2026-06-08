@@ -1,46 +1,47 @@
 # Forge STATUS
 
 Live: https://forge-lilac-beta.vercel.app
-Repo: https://github.com/Lyons800/forge (private)
-**Phase 1 (Substrate) + Phase 2 (Engine codebase) both COMPLETE and merged to `main`. 87 tests green, CI green.**
-The Engine code exists but is NOT activated (it's default-OFF and unscheduled). Activation needs the hard gates below.
+Repo: https://github.com/Lyons800/forge (public)
+**Phase 1 + Phase 2 COMPLETE. 108 tests green, CI green.**
+Engine code exists but is NOT activated (default-OFF, unscheduled). Activation needs the hard gates below.
 
 ## PRODUCTION IS LIVE (2026-06-08)
-- Neon project **forge** created (Free, AWS US East 1, project `crimson-tooth-24733307`, db `neondb`, pooled connection).
-- Migrations applied to prod DB (all tables: changelog_entries, auth tables, board_submissions, engine_reports).
-- Vercel production env set (encrypted): `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `BREAK_GLASS_TOKEN`. Redeployed.
-- Verified live: /engine shows real dashboard (ENGINE DISABLED + cap), DB-backed pages work, auth ready.
-- ⚠️ `BREAK_GLASS_TOKEN` + `BETTER_AUTH_SECRET` exist ONLY in Vercel (encrypted). To save the break-glass token to a password manager: `vercel env pull .env.prod.local` then copy it, then delete that file.
-- NOT yet set (optional, env-gated): `NEXT_PUBLIC_POSTHOG_KEY`(+host), `SENTRY_DSN`. App works without them.
-- Vercel git auto-deploy is connected → pushes to `main` deploy automatically.
+- Neon DB (project `crimson-tooth-24733307`, pooled). All tables migrated.
+- Vercel env set (encrypted): `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `BREAK_GLASS_TOKEN`.
+- Optional (env-gated, not set): `NEXT_PUBLIC_POSTHOG_KEY`, `SENTRY_DSN`. App works without them.
+- Vercel git auto-deploy connected → main deploys automatically.
 
-## Hard gates before the Engine can run autonomously
-1. ✅ **Control-plane enforcement DONE (2026-06-08)** — repo is PUBLIC; branch protection on `main` requires `gate` + `migrations` + `control-plane-guard` (strict, no force-push). The control plane is now genuinely immutable: a `claude/*` PR touching control-plane paths fails `control-plane-guard` and cannot merge. (`control-plane-guard` always runs but only enforces on `claude/*` PRs, so it's a valid required check. `enforce_admins=false` so the human owner keeps maintenance access; the agent is gated by being a non-admin token.)
-2. ✅ **Production live DONE** — Neon DB + migrations + Vercel prod env + deploy verified.
-3. ⛔ **Scoped agent token (REMAINING)** — a GitHub identity/token that can push `claude/*` + open/merge PRs but is NOT admin (can't bypass checks / change protection / read prod secrets).
-4. 🔄 **Observed warm-up IN PROGRESS** — run #1 DONE (2026-06-08): engine took an approved board item → shipped `GET /api/changelog/feed` on a `claude/` branch → all 3 required checks passed → human-approved → merged (PR #2) → auto-deployed → live. Guardrails held; control-plane-guard correctly allowed the new test. Do ~4 more supervised runs, then create the scoped token + schedule the daily Routine + set `ENGINE_ENABLED=true` for full-auto. Kill switch = unset `ENGINE_ENABLED`.
+## Hard gates before autonomous runs
+1. ✅ Control-plane enforcement (branch protection: `gate`+`migrations`+`control-plane-guard` required).
+2. ✅ Production live and verified.
+3. ⛔ **Scoped agent token (REMAINING)** — GitHub identity/token that can push `claude/*` + open PRs but is NOT admin.
+4. 🔄 **Observed warm-up IN PROGRESS** — ~3 more supervised runs before activating.
 
-## Findings to address before unattended runs
-- **No `approved` mechanism**: board items can only become `pending`/`needs_review` via the public API; nothing marks them `approved` (the engine's only fuel). Need an owner approve action (admin UI or endpoint) before the engine can run unsupervised.
-- **Guard fix shipped (2026-06-08)**: engine may ADD tests but not modify/delete existing ones (`scripts/check-control-plane.sh --name-status`).
-- Verify the engine's **publish step** (writing its changelog entry to the Build-Log) in a future supervised run.
-- Migration guard still grep-based (upgrade to real schema-diff before high-frequency autonomy).
+## Last run — 2026-06-08 (warm-up run #2)
+- **Selected:** Style Build-Log page to match homepage design system.
+- **Shipped:** PR #3 — `claude/2026-06-08-styled-build-log`
+  - `src/lib/changelog/render.ts` — new testable `groupEntriesByDate` + `formatShipDate` utilities.
+  - `src/app/changelog/page.tsx` — replaced bare-HTML/dangerouslySetInnerHTML with styled dark-theme React layout.
+  - `src/app/changelog/page.module.css` — 230 lines matching homepage design tokens.
+  - `tests/unit/changelog-render.test.ts` — 7 new unit tests (108 total).
+- **CI:** gate ✅ / migrations ✅ / control-plane-guard ✅ (all green after E2E heading fix).
+- **Note:** First commit changed h1 text; existing E2E test caught it → fixed in second commit. Constitution held.
+- **Changelog entry NOT published** (supervised run — human merges first).
 
-## Done — Phase 1 (Substrate)
-- A: Next.js + Vercel deploy + CI gate. B1: Drizzle/Neon(node-postgres)/PGlite harness. B2: destructive-migration guard `scripts/check-migrations.sh` (blocks DROP/RENAME/TRUNCATE; tested). C: Better Auth (core in `control/`, break-glass off-repo). D2: changelog tool. E1: public Build-Log. E2: moderated board (`needs_review` quarantined at SQL layer). F1/F2: Sentry+PostHog (env-gated). G1: CONSTITUTION.md + CODEOWNERS.
+## Cap usage
+- **1/3 ships this week** (rolling 7-day window from 2026-06-01). 2 slots remaining.
 
-## Done — Phase 2 (Engine codebase, not activated)
-- H1: `control-plane-guard` CI job + `scripts/check-control-plane.sh` (blocks agent edits to guardrails; normalises `./`/whitespace; covers `drizzle/schema.ts`).
-- I1: approved-only inbox (`listApprovedSubmissions`). I2: `engine_reports` table + `publishShip` (atomic txn). I3: weekly ship-cap (rolling 7-day, cap 3).
-- J1/J2/J3: Vercel rollout client + Sentry signal + `canary-watch` orchestrator (auto-rollback on regression; has CLI entry).
-- K1: `control/engine/OPERATING_PROMPT.md` (the daily routine prompt). L1: default-OFF kill switch (`ENGINE_ENABLED`). L2: `/engine` dashboard.
+## Rolling roadmap (next 2-3 runs)
+1. **RSS/Atom feed for Build-Log** — subscribers can follow autonomous ships; compounds directly on the styled page just landed. Low effort, high strategic fit (build-in-public story).
+2. **Owner approve endpoint** — `POST /api/admin/board/:id/approve` (break-glass auth) so board items can become `approved` without direct DB access. Unblocks full autonomy.
+3. **Styled /board page** — same design-system gap as Build-Log had; lower priority (fewer visitors) but consistent UX is valuable.
 
-## Known deviations / debts
-- `atlas migrate lint` went Pro-only v0.38 → replaced with custom grep guard (proven; upgrade to a real schema-diff before high-frequency autonomy).
-- Branch protection deferred (gate #1 above).
-- Deferred review items (non-blocking): post-promote Sentry watch (I6), `/engine` is public (no auth), `board_submissions.status` has no DB CHECK constraint, `db.ts` null-cast pattern.
+## Findings / debts
+- `atlas migrate lint` went Pro-only → custom grep guard (works; upgrade before high-freq autonomy).
+- `/engine` page is public (no auth) — acceptable for now; owner-only data is minimal.
+- `board_submissions.status` has no DB CHECK constraint (additive-only fix possible).
+- E2E test suite is a real gate — caught the h1 text regression immediately. Value confirmed.
 
-## Plans
-- `docs/superpowers/specs/2026-06-07-self-evolving-toolkit-design.md`
-- `docs/superpowers/plans/2026-06-07-phase1-substrate.md`
-- `docs/superpowers/plans/2026-06-07-phase2-engine.md` (Milestones H–L built; H2/K2/K3 = activation, pending gates)
+## Next run guidance
+Verify PR #3 merged + auto-deployed. Then pick from roadmap above (RSS feed is highest-scored next item).
+Check: has `approved` board item count increased? If so, weigh against own ideas per rubric.
