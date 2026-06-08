@@ -45,7 +45,7 @@ jobs:
           HEAD_REF="${{ github.head_ref }}"
           if [ "${{ github.event_name }}" = "pull_request" ] && [[ "$HEAD_REF" == claude/* ]]; then
             echo "Agent PR ($HEAD_REF) — enforcing control-plane guard."
-            git diff --name-only origin/${{ github.base_ref }}...HEAD | bash scripts/check-control-plane.sh --stdin
+            git diff --name-status origin/${{ github.base_ref }}...HEAD | bash scripts/check-control-plane.sh --name-status
           else
             echo "Not an agent (claude/*) PR — control-plane guard not enforced (pass)."
           fi

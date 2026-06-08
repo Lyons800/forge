@@ -142,7 +142,7 @@ Example: `claude/2026-06-07-add-export-button`
    | `scripts/check-migrations.sh` | Migration safety guard |
    | `scripts/check-control-plane.sh` | Control-plane guard (self-protecting) |
    | `.github/` | All CI workflows and CODEOWNERS |
-   | `tests/` | Entire test suite — tests are the only gate to prod |
+   | `tests/` | Existing test files — you MAY add new test files (status A) under `tests/`, but MUST NEVER modify or delete existing ones. Weakening or removing tests is a constitutional breach. |
    | `src/lib/auth.ts` | Control-critical auth re-export |
 
    If your planned change requires modifying any path above: stop, write a
@@ -159,6 +159,9 @@ Example: `claude/2026-06-07-add-export-button`
 
 3. **Write tests first.** Every feature must have corresponding unit tests
    in `tests/unit/` before implementation. The CI gate requires tests green.
+   You MAY add new test files under `tests/` (the guard allows additions).
+   You MUST NEVER modify or delete existing test files — that is a
+   constitutional breach (anti-reward-hacking rule).
 
 4. **No secrets in code.** Use environment variables exclusively.
    Never commit `.env`, API keys, passwords, tokens, or DSNs.

@@ -4,6 +4,17 @@ const run = (files: string[]) => {
   try { execFileSync("bash", ["scripts/check-control-plane.sh", "--files", files.join("\n")]); return 0; }
   catch (e: unknown) { return (e as NodeJS.ErrnoException & { status?: number }).status ?? 1; }
 };
+
+// --name-status mode helper: stdin is "STATUS\tPATH\n"
+const runNameStatus = (input: string) => {
+  try {
+    execFileSync("bash", ["scripts/check-control-plane.sh", "--name-status"], { input });
+    return 0;
+  } catch (e: unknown) {
+    return (e as NodeJS.ErrnoException & { status?: number }).status ?? 1;
+  }
+};
+
 describe("control-plane guard", () => {
   it("blocks a PR that modifies a control-plane path", () => {
     expect(run(["control/auth/auth.config.ts"])).not.toBe(0);
@@ -42,5 +53,42 @@ describe("control-plane guard", () => {
         input: "control/auth/auth.config.ts\n",
       })
     ).toThrow();
+  });
+});
+
+describe("control-plane guard — --name-status mode", () => {
+  // Engine ADDING a new test file must be allowed
+  it("allows adding a new test file (A status under tests/)", () => {
+    expect(runNameStatus("A\ttests/unit/new-feature.test.ts\n")).toBe(0);
+  });
+
+  // Modifying an existing test must be blocked (anti-reward-hacking)
+  it("blocks modifying an existing test file (M status)", () => {
+    expect(runNameStatus("M\ttests/unit/health.test.ts\n")).not.toBe(0);
+  });
+
+  // Deleting an existing test must be blocked
+  it("blocks deleting an existing test file (D status)", () => {
+    expect(runNameStatus("D\ttests/unit/health.test.ts\n")).not.toBe(0);
+  });
+
+  // Adding to control/ must be blocked (non-test control-plane path, any status)
+  it("blocks adding a file to control/ (A status)", () => {
+    expect(runNameStatus("A\tcontrol/engine/new.ts\n")).not.toBe(0);
+  });
+
+  // Adding a new workflow must be blocked
+  it("blocks adding a new workflow to .github/ (A status)", () => {
+    expect(runNameStatus("A\t.github/workflows/evil.yml\n")).not.toBe(0);
+  });
+
+  // Modifying src/lib/auth.ts must be blocked
+  it("blocks modifying src/lib/auth.ts (M status)", () => {
+    expect(runNameStatus("M\tsrc/lib/auth.ts\n")).not.toBe(0);
+  });
+
+  // Adding an app-plane file must be allowed
+  it("allows adding an app-plane file (A status, not control-plane)", () => {
+    expect(runNameStatus("A\tsrc/app/api/changelog/feed/route.ts\n")).toBe(0);
   });
 });
